@@ -1,0 +1,16 @@
+{
+  "me": 1,
+  "addrs": [{
+    "server_addr": "127.0.0.1:8000",
+    "raft_addr": "127.0.0.1:9000"
+  },{
+    "server_addr": "127.0.0.1:8001",
+    "raft_addr": "127.0.0.1:9001"
+  },{
+    "server_addr": "127.0.0.1:8002",
+    "raft_addr": "127.0.0.1:9002"
+  }
+  ],
+  "log_storage_file": "./server/data1",
+  "state_storage_file": "./server/state1"
+}
