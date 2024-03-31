@@ -59,7 +59,7 @@ func Server(config *kv_raft.Config) error {
 	defer func() {
 		_ = logFile.Close()
 	}()
-	stateFile, err := os.OpenFile(config.StateStorageFile, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0644)
+	stateFile, err := os.OpenFile(config.StateStorageFile, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0644)
 	if err != nil {
 		return fmt.Errorf("os.OpenFile err: %v", err)
 	}
@@ -83,8 +83,6 @@ func Server(config *kv_raft.Config) error {
 	}
 	// 启动raft
 	r.Start()
-	// 启动监听applyCommand
-	server.StartListenApplyCommand(r)
 	// 创建http Server
 	if err = RunKVServer(config, r, clientCommands); err != nil {
 		return fmt.Errorf("RunKVServer err: %v", err)
@@ -148,7 +146,7 @@ func RunKVServer(config *kv_raft.Config, r *raft.Raft, clientCommands chan strin
 func reply(w http.ResponseWriter, b byte, result []byte) {
 	res := make([]byte, 0, 1+len(result))
 	res = append([]byte{b}, res...)
-	_, err := w.Write(result)
+	_, err := w.Write(res)
 	if err != nil {
 		log.Error("writer.Write err: %v", err)
 	}

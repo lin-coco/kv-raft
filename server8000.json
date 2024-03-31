@@ -1,5 +1,5 @@
 {
-  "me": 1,
+  "me": 0,
   "addrs": [{
     "server": "127.0.0.1:8000",
     "raft": "127.0.0.1:9000"
@@ -11,6 +11,6 @@
     "raft": "127.0.0.1:9002"
   }
   ],
-  "log_storage_file": "./server/data1",
-  "state_storage_file": "./server/state1"
+  "log_storage_file": "./server/data0",
+  "state_storage_file": "./server/state0"
 }

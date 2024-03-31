@@ -6,3 +6,11 @@ generate: raft/rpc/raft.proto
 raft/rpc/raft.proto:
 	@echo "Error: raft/rpc/raft.proto 文件不存在"
 	@exit 1
+
+build-server:
+	go mod tidy && go build -o mykv-server ./server/cmd
+
+
+build-client:
+	go mod tidy && go build -o mykv-client ./client/cmd
+

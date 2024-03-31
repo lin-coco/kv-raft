@@ -2,6 +2,7 @@ package raft
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"kv-raft/raft/common"
 )
@@ -50,14 +51,14 @@ func (r *Raft) SaveState() {
 	}
 }
 
-func (r *Raft) ReadState() *common.State {
+func (r *Raft) ReadState() (*common.State, error) {
 	bytes, err := r.persister.ReadState()
 	if err != nil {
 		panic(err)
 	}
 	var state common.State
 	if err = json.Unmarshal(bytes, &state); err != nil {
-		panic(err)
+		return nil, fmt.Errorf("json.Unmarshal err: %v", err)
 	}
-	return &state
+	return &state, nil
 }

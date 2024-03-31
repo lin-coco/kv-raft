@@ -17,7 +17,11 @@ func (r *Raft) startHeartbeat() {
 		r.mutex.Lock()
 		if r.status == common.Leader {
 			r.mutex.Unlock()
+			log.Debugf("我是leader，开始新一轮心跳")
 			r.doHeartbeat()
+		} else {
+			//log.Debugf("我非leader，不进行心跳")
+			r.mutex.Unlock()
 		}
 	}
 }
@@ -42,12 +46,12 @@ func (r *Raft) doHeartbeat() {
 				Data:             snapshot,
 			}
 			go func(server int) {
-				ctx, cancel := context.WithTimeout(context.Background(), time.Duration(common.RpcTimeout)*time.Millisecond)
-				defer cancel()
-				resp, err := r.peers[i].InstallSnapshot(ctx, req)
+				resp, err := r.peers[i].InstallSnapshot(context.Background(), req)
 				if err != nil {
-					log.Error("r.peers[i].InstallSnapshot err: %v", err)
+					log.Errorf("发送快照心跳失败 节点id:%d err: %v", i, err)
+					return
 				}
+				log.Debugf("发送快照心跳 节点id:%d req.Term:%d,LastIncludeIndex:%d,LastIncludeTerm:%d", i, req.Term, req.LastIncludeIndex, req.LastIncludeTerm)
 				r.handleInstallSnapshotResp(r.lastIncludeIndex, server, resp)
 			}(i)
 		} else { // 使用日志同步
@@ -75,9 +79,10 @@ func (r *Raft) doHeartbeat() {
 				defer cancel()
 				resp, err := r.peers[server].AppendEntries(ctx, req)
 				if err != nil {
-					log.Error("r.peers[%v].AppendEntries err: %v", server, err)
+					log.Errorf("发送日志心跳失败 节点id:%d err: %v", server, err)
 					return
 				}
+				log.Debugf("发送日志心跳 节点id:%d req.Term:%d,PrevLogIndex:%d,PrevLogTerm:%d,logSize:%d,LeaderCommit:%d", server, req.Term, req.PrevLogIndex, req.PrevLogTerm, len(req.Entries), req.LeaderCommit)
 				var sendLastLogIndex int
 				if len(req.Entries) > 0 {
 					sendLastLogIndex = int(req.Entries[len(req.Entries)-1].Index)
@@ -92,21 +97,27 @@ func (r *Raft) doHeartbeat() {
 func (r *Raft) handleAppendEntriesResp(sendLastLogIndex int, server int, resp *rpc.AppendEntriesResp) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
+	if r.status == common.Follower {
+		log.Debugf("我已经成为Follower，忽略收到的日志心跳响应")
+		return
+	}
 	if int(resp.Term) > r.currentTerm {
 		r.currentTerm = int(resp.Term)
 		r.status = common.Follower
 		r.votedFor = -1
 		r.SaveState()
+		log.Debugf("收到server:%d日志心跳回复，它的term:%d比我:%d的大，更新自己term，成为Follower", server, resp.Term, r.currentTerm)
 		return
 	}
-
 	if resp.Success { // 成功
 		// 为follower更新nextIndex和matchIndex
 		if sendLastLogIndex == 0 { // 没有发送log，不更新nextIndex和matchIndex
+			log.Debugf("收到server:%d日志心跳回复，成功", server)
 			return
 		} else { // 发送了log，更新nextIndex和matchIndex
 			r.nextIndex[server] = sendLastLogIndex + 1
 			r.matchIndex[server] = sendLastLogIndex
+			log.Debugf("收到server:%d日志心跳回复，成功，nextIndex:%d, matchIndex:%d", server, r.nextIndex[server], r.matchIndex[server])
 			for n := sendLastLogIndex; n > 0; n-- { // 更新commitIndex
 				if n <= r.commitIndex {
 					break
@@ -125,6 +136,7 @@ func (r *Raft) handleAppendEntriesResp(sendLastLogIndex int, server int, resp *r
 					// 应用指令
 					r.applyLog()
 					r.Persist()
+					log.Debugf("日志索引:%d, 超过半数match，提交索引并应用", r.commitIndex)
 					break
 				}
 			}
@@ -133,6 +145,7 @@ func (r *Raft) handleAppendEntriesResp(sendLastLogIndex int, server int, resp *r
 	} else { // 失败
 		// 可能日志不一致失败，递减nextIndex
 		r.nextIndex[server]--
+		log.Debugf("收到server:%d日志心跳回复，发生了日志不一样的错误，递减nextIndex:%d", server, r.nextIndex[server])
 		return
 	}
 }
@@ -140,15 +153,21 @@ func (r *Raft) handleAppendEntriesResp(sendLastLogIndex int, server int, resp *r
 func (r *Raft) handleInstallSnapshotResp(sendLastLogIndex int, server int, resp *rpc.InstallSnapshotResp) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
+	if r.status == common.Follower {
+		log.Debugf("我已经成为Follower，忽略收到的快照心跳响应")
+		return
+	}
 	if int(resp.Term) > r.currentTerm {
 		r.currentTerm = int(resp.Term)
 		r.status = common.Follower
 		r.votedFor = -1
+		log.Debugf("收到server:%d快照心跳回复，它的term:%d比我:%d的大，更新自己term，成为Follower", server, resp.Term, r.currentTerm)
 		return
 	}
 	// 为follower更新nextIndex和matchIndex
 	r.nextIndex[server] = sendLastLogIndex + 1
 	r.matchIndex[server] = sendLastLogIndex
+	log.Debugf("收到server:%d快照心跳回复，成功，设置此server的nextIndex:%d, matchIndex:%d", server, r.nextIndex[server], r.matchIndex[server])
 	for n := sendLastLogIndex; n > 0; n-- { // 更新commitIndex
 		if n <= r.commitIndex {
 			break
@@ -166,6 +185,7 @@ func (r *Raft) handleInstallSnapshotResp(sendLastLogIndex int, server int, resp 
 			r.commitIndex = n
 			// 应用指令
 			r.applyLog()
+			log.Debugf("日志索引:%d, 超过半数match，提交索引并应用", r.commitIndex)
 			break
 		}
 	}
@@ -183,6 +203,7 @@ func (r *Raft) AppendEntries(_ context.Context, req *rpc.AppendEntriesReq) (*rpc
 	if int(req.Term) < r.currentTerm { // leader日志旧了
 		resp.Term = int64(r.currentTerm)
 		resp.Success = false
+		log.Debugf("收到server:%d日志心跳，它的Term:%d比我的旧:%d，让它更新自己", req.LeaderId, req.Term, r.currentTerm)
 		return &resp, nil
 	}
 	if int(req.Term) > r.currentTerm {
@@ -196,11 +217,14 @@ func (r *Raft) AppendEntries(_ context.Context, req *rpc.AppendEntriesReq) (*rpc
 		if lastLogIndex < int(req.PrevLogIndex) { // 本节点不包含prevLogIndex，返回false
 			resp.Term = int64(r.currentTerm)
 			resp.Success = false
+			log.Debugf("收到server:%d日志心跳，prevLogIndex:%d还不存在，拒绝同步日志, lastLogIndex:%d", req.LeaderId, req.PrevLogIndex, lastLogIndex)
 			return &resp, nil
 		}
-		if int(req.Term) != r.getLogTermByIndex(int(req.PrevLogIndex)) { // 日志term与prevLogTerm不符合，返回false
+		term := r.getLogTermByIndex(int(req.PrevLogIndex))
+		if int(req.PrevLogTerm) != term { // 日志term与prevLogTerm不符合，返回false
 			resp.Term = int64(r.currentTerm)
 			resp.Success = false
+			log.Debugf("收到server:%d日志心跳，PrevLogTerm:%d不等于本节点相同位置处的Term:%d，日志不统一，拒绝同步日志", req.LeaderId, req.PrevLogTerm, term)
 			return &resp, nil
 		}
 	}
@@ -235,9 +259,11 @@ func (r *Raft) AppendEntries(_ context.Context, req *rpc.AppendEntriesReq) (*rpc
 		r.commitIndex = min(int(req.LeaderCommit), lastLogIndex)
 		// 应用指令
 		r.applyLog()
+		log.Debugf("日志索引:%d, 提交索引并应用", r.commitIndex)
 	}
 	resp.Term = int64(r.currentTerm)
 	resp.Success = true
+	log.Debugf("收到server:%d日志心跳，同意同步日志", req.LeaderId)
 	return &resp, nil
 }
 
@@ -249,6 +275,7 @@ func (r *Raft) InstallSnapshot(_ context.Context, req *rpc.InstallSnapshotReq) (
 	r.lastElectionTime = time.Now().UnixMilli() // 收到心跳，重置选举时间
 	if int(req.Term) < r.currentTerm {
 		resp.Term = int64(r.currentTerm)
+		log.Debugf("收到server:%d快照心跳，它的Term:%d比我的旧:%d，让它更新自己", req.LeaderId, req.Term, r.currentTerm)
 		return &resp, nil
 	} else if int(req.Term) > r.currentTerm {
 		r.currentTerm = int(req.Term)
@@ -270,6 +297,7 @@ func (r *Raft) InstallSnapshot(_ context.Context, req *rpc.InstallSnapshotReq) (
 	r.lastApplied = r.lastIncludeIndex
 	// 响应
 	resp.Term = int64(r.currentTerm)
+	log.Debugf("收到server:%d快照心跳，成功同步快照，commitIndex:%d", req.LeaderId, r.commitIndex)
 	return &resp, nil
 }
 

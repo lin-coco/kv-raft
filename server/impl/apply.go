@@ -10,7 +10,7 @@ type ApplyCommand struct {
 }
 
 func NewApplyCommand() ApplyCommand {
-	return NewApplyCommand()
+	return ApplyCommand{}
 }
 
 func (a ApplyCommand) ApplyCommand(command string) string {

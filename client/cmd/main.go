@@ -26,6 +26,12 @@ func main() {
 		log.SetLevel(log.DebugLevel)
 		return nil
 	}
+	app.Flags = []cli.Flag{
+		cli.StringFlag{
+			Name:  "f",
+			Usage: "-f config file",
+		},
+	}
 	app.Action = func(ctx *cli.Context) {
 		configFilePath := ctx.String("f")
 		// 阅读配置
@@ -115,6 +121,7 @@ func SendCommand(lastLeaderId *int, userCommand []byte) bool {
 		log.Errorf("addr: %v, io.ReadAll err: %v", leaderAddr, err)
 		return false
 	}
+	log.Debugf("resp.Body: %v", all)
 	if all[0] == Success {
 		writeSuccess(all[1:])
 		return true
@@ -144,11 +151,13 @@ func writeAngle() {
 	_ = w.Flush()
 }
 func writeSuccess(result []byte) {
+	result = append(result, '\n')
 	_, _ = w.Write(append([]byte("success: "), result...))
 	_ = w.Flush()
 }
 
 func writeFailed(result []byte) {
+	result = append(result, '\n')
 	_, _ = w.Write(append([]byte("failed: "), result...))
 	_ = w.Flush()
 }
