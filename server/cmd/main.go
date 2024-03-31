@@ -147,7 +147,7 @@ func RunKVServer(config *kv_raft.Config, r *raft.Raft, clientCommands chan strin
 
 func reply(w http.ResponseWriter, b byte, result []byte) {
 	res := make([]byte, 0, 1+len(result))
-	res = append([]byte{Failed}, res...)
+	res = append([]byte{b}, res...)
 	_, err := w.Write(result)
 	if err != nil {
 		log.Error("writer.Write err: %v", err)
