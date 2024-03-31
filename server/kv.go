@@ -12,15 +12,15 @@ func init() {
 	KV = make(map[string]string)
 }
 
-func put(key, value string) {
+func Put(key, value string) {
 	KV[key] = value
 }
 
-func get(key string) string {
+func Get(key string) string {
 	return KV[key]
 }
 
-func del(key string) {
+func Del(key string) {
 	delete(KV, key)
 }
 
@@ -28,13 +28,13 @@ func del(key string) {
 func ExecCommand(command string) string {
 	split := strings.Split(command, " ")
 	switch split[0] {
-	case "put":
-		put(split[1], split[2])
+	case "Put":
+		Put(split[1], split[2])
 		return ""
-	case "get":
-		return get(split[1])
-	case "del":
-		del(split[1])
+	case "Get":
+		return Get(split[1])
+	case "Del":
+		Del(split[1])
 		return ""
 	}
 	return ""
@@ -46,19 +46,19 @@ func CheckCommand(command string) error {
 	if len(split) < 1 {
 		return errors.New("command is incorrect")
 	}
-	// 只支持put get del
+	// 只支持put Get Del
 	switch split[0] {
-	case "put":
+	case "Put":
 		if len(split) != 3 {
 			return errors.New("number of command parameters is incorrect")
 		}
 		return nil
-	case "get":
+	case "Get":
 		if len(split) != 2 {
 			return errors.New("number of command parameters is incorrect")
 		}
 		return nil
-	case "del":
+	case "Del":
 		if len(split) != 2 {
 			return errors.New("number of command parameters is incorrect")
 		}

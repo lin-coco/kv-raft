@@ -105,6 +105,8 @@ func (r *Raft) handleRequestVoteResp(resp *rpc.RequestVoteResp, voteNum *int) {
 			r.nextIndex[i] = lastLogIndex + 1 // 初始化设置为lastLogIndex + 1
 			r.matchIndex[i] = 0               // 初始化设置成0，表示新leader和follower之间还没有复制日志
 		}
+		// TODO 成为leader立刻进行一次心跳
+		//r.doHeartbeat()
 	}
 }
 

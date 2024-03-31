@@ -37,6 +37,10 @@ type Raft struct {
 	reset state_machine_interface.Reset
 	// 上层客户端的指令 leader取
 	clientCommands <-chan string
+	// 已经被提交待应用的指令 状态机取
+	ApplyCommands chan string
+	// 状态机应用指令
+	apply state_machine_interface.Apply
 	// 判断是否是只读命令
 	rwJudge state_machine_interface.RWJudge
 	rpc.UnimplementedRaftRpcServer

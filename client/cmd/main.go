@@ -48,7 +48,8 @@ func main() {
 
 const (
 	Success = 1
-	Forward = 2
+	Failed  = 2
+	Forward = 3
 )
 
 var (
@@ -87,6 +88,7 @@ func Client(config *kv_raft.Config) error {
 	}
 }
 
+// SendCommand 返回结果是否成功发送并响应
 func SendCommand(lastLeaderId *int, userCommand []byte) bool {
 	leaderAddr := config.Addrs[*lastLeaderId].Server
 	req, _ := http.NewRequest("POST", "http://"+leaderAddr+"/receive", bytes.NewBuffer(userCommand))
@@ -114,11 +116,14 @@ func SendCommand(lastLeaderId *int, userCommand []byte) bool {
 		return false
 	}
 	if all[0] == Success {
-		writeResult(all[1:])
+		writeSuccess(all[1:])
 		return true
 	} else if all[0] == Forward {
 		*lastLeaderId = int(all[0])
 		return false
+	} else if all[0] == Failed {
+		writeFailed(all[1:])
+		return true
 	} else {
 		panic("unexpected response: " + string(all))
 	}
@@ -138,7 +143,12 @@ func writeAngle() {
 	_, _ = w.Write([]byte(">"))
 	_ = w.Flush()
 }
-func writeResult(result []byte) {
-	_, _ = w.Write(result)
+func writeSuccess(result []byte) {
+	_, _ = w.Write(append([]byte("success: "), result...))
+	_ = w.Flush()
+}
+
+func writeFailed(result []byte) {
+	_, _ = w.Write(append([]byte("failed: "), result...))
 	_ = w.Flush()
 }

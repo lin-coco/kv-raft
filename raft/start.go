@@ -18,6 +18,7 @@ func NewRaft(me int, addrs []string,
 	persister state_machine_interface.Persister,
 	reset state_machine_interface.Reset,
 	rwJudge state_machine_interface.RWJudge,
+	apply state_machine_interface.Apply,
 	isInitReset bool,
 	clientCommands <-chan string) (*Raft, error) {
 	var r Raft
@@ -51,8 +52,8 @@ func NewRaft(me int, addrs []string,
 	r.reset = reset                     // 上层状态机的重置实现
 	r.rwJudge = rwJudge                 // 上层状态机的命令读写判断实现
 	r.clientCommands = clientCommands   // 上层状态机传递的用户层命令
-
-	state := r.ReadState() // 阅读状态
+	r.apply = apply                     // 上层状态机的应用实现
+	state := r.ReadState()              // 阅读状态
 	if state != nil {
 		r.currentTerm = 0
 		r.votedFor = -1

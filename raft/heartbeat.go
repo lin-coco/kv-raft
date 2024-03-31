@@ -122,6 +122,8 @@ func (r *Raft) handleAppendEntriesResp(sendLastLogIndex int, server int, resp *r
 				}
 				if matchCount >= len(r.peers)/2+1 {
 					r.commitIndex = n
+					// 应用指令
+					r.applyLog()
 					r.Persist()
 					break
 				}
@@ -162,6 +164,8 @@ func (r *Raft) handleInstallSnapshotResp(sendLastLogIndex int, server int, resp 
 		}
 		if matchCount >= len(r.peers)/2+1 {
 			r.commitIndex = n
+			// 应用指令
+			r.applyLog()
 			break
 		}
 	}
@@ -227,13 +231,19 @@ func (r *Raft) AppendEntries(_ context.Context, req *rpc.AppendEntriesReq) (*rpc
 	}
 	if int(req.LeaderCommit) > r.commitIndex {
 		lastLogIndex, _ = r.getLastLogIndexAndTerm()
+		// 提交索引
 		r.commitIndex = min(int(req.LeaderCommit), lastLogIndex)
+		// 应用指令
+		r.applyLog()
 	}
 	resp.Term = int64(r.currentTerm)
 	resp.Success = true
 	return &resp, nil
 }
 
+/*
+InstallSnapshot 同步快照rpc
+*/
 func (r *Raft) InstallSnapshot(_ context.Context, req *rpc.InstallSnapshotReq) (*rpc.InstallSnapshotResp, error) {
 	var resp rpc.InstallSnapshotResp
 	r.lastElectionTime = time.Now().UnixMilli() // 收到心跳，重置选举时间
