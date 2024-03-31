@@ -1,4 +1,6 @@
-kv-raft
+# kv-raft
+
+README待整理。。。
 
 ## 选举
 ![img.png](img.png)
