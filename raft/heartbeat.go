@@ -17,12 +17,12 @@ func (r *Raft) startHeartbeat() {
 		r.mutex.Lock()
 		if r.status == common.Leader {
 			r.mutex.Unlock()
-			r.DoHeartbeat()
+			r.doHeartbeat()
 		}
 	}
 }
 
-func (r *Raft) DoHeartbeat() {
+func (r *Raft) doHeartbeat() {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 	lastLogIndex, _ := r.getLastLogIndexAndTerm() // 即将要发送nextIndex[i]到lastLogIndex之间的log
@@ -274,7 +274,7 @@ func (r *Raft) getServerPrevLogIndexAndTerm(server int) (prevLogIndex, prevLogTe
 
 // 确保logIndex >= 1
 func (r *Raft) getSliceIndexByLogIndex(logIndex int) (sliceIndex int) {
-	return logIndex - 1
+	return logIndex - r.lastIncludeIndex - 1
 }
 
 func (r *Raft) isExistLogByIndex(logIndex int) bool {
