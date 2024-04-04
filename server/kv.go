@@ -28,12 +28,12 @@ func Del(key string) {
 func ExecCommand(command string) string {
 	split := strings.Split(command, " ")
 	switch split[0] {
-	case "Put":
+	case "put":
 		Put(split[1], split[2])
 		return ""
-	case "Get":
+	case "get":
 		return Get(split[1])
-	case "Del":
+	case "del":
 		Del(split[1])
 		return ""
 	}
@@ -48,22 +48,31 @@ func CheckCommand(command string) error {
 	}
 	// 只支持put Get Del
 	switch split[0] {
-	case "Put":
-		if len(split) != 3 {
+	case "put":
+		if len(split) != 3 || split[1] == "" || split[2] == "" {
 			return errors.New("number of command parameters is incorrect")
 		}
 		return nil
-	case "Get":
-		if len(split) != 2 {
+	case "get":
+		if len(split) != 2 || split[1] == "" {
 			return errors.New("number of command parameters is incorrect")
 		}
 		return nil
-	case "Del":
-		if len(split) != 2 {
+	case "del":
+		if len(split) != 2 || split[1] == "" {
 			return errors.New("number of command parameters is incorrect")
 		}
 		return nil
 	default:
 		return fmt.Errorf("unsupported command: %s", split[0])
 	}
+}
+
+// CheckReadOnly 必须先经过检查
+func CheckReadOnly(command string) bool {
+	split := strings.Split(command, " ")
+	if split[0] == "get" {
+		return true
+	}
+	return false
 }

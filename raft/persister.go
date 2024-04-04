@@ -7,20 +7,24 @@ import (
 	"kv-raft/raft/common"
 )
 
-func (r *Raft) Persist() {
+func (r *Raft) persist() {
 	// 持久化到commitIndex
 	var data []string
-	for _, entry := range r.logs[:r.commitIndex+1] {
+	commitSliceIndex := r.getSliceIndexByLogIndex(r.commitIndex)
+	for _, entry := range r.logs[:commitSliceIndex+1] {
 		data = append(data, entry.Command)
 	}
 	// 调用persister
 	if err := r.persister.Persist(data); err != nil {
 		panic(err)
 	}
-	r.logs = r.logs[r.commitIndex+1:]
+	r.lastIncludeIndex = r.logs[commitSliceIndex].Index
+	r.lastIncludeTerm = r.logs[commitSliceIndex].Term
+	r.saveState()
+	r.logs = r.logs[commitSliceIndex+1:]
 }
 
-func (r *Raft) ReplaceSnapshot(data []byte) {
+func (r *Raft) replaceSnapshot(data []byte) {
 	err := r.persister.ReplaceSnapshot(data)
 	if err != nil {
 		panic(err)
@@ -35,7 +39,7 @@ func (r *Raft) Snapshot() []byte {
 	return bytes
 }
 
-func (r *Raft) SaveState() {
+func (r *Raft) saveState() {
 	state := &common.State{
 		CurrentTerm:      r.currentTerm,
 		VotedFor:         r.votedFor,
@@ -51,7 +55,7 @@ func (r *Raft) SaveState() {
 	}
 }
 
-func (r *Raft) ReadState() (*common.State, error) {
+func (r *Raft) readState() (*common.State, error) {
 	bytes, err := r.persister.ReadState()
 	if err != nil {
 		panic(err)

@@ -47,11 +47,11 @@ func (f FilePersister) Snapshot() ([]byte, error) {
 }
 
 func (f FilePersister) SaveState(state []byte) error {
-	if err := f.LogFile.Truncate(0); err != nil {
+	if err := f.StateFile.Truncate(0); err != nil {
 		return fmt.Errorf("f.File.Truncate err: %v", err)
 	}
 	// 将文件指针位置设置为文件开头
-	if _, err := f.LogFile.Seek(0, 0); err != nil {
+	if _, err := f.StateFile.Seek(0, 0); err != nil {
 		return fmt.Errorf("f.File.Seek err: %v", err)
 	}
 	_, err := f.StateFile.Write(state)

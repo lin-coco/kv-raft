@@ -86,8 +86,8 @@ func Client(config *kv_raft.Config) error {
 		if b := SendCommand(&lastLeaderId, userCommand); !b {
 			for i := 0; i < retry; i++ {
 				b = SendCommand(&lastLeaderId, userCommand)
-				if !b {
-					continue
+				if b {
+					break
 				}
 			}
 		}
@@ -121,12 +121,13 @@ func SendCommand(lastLeaderId *int, userCommand []byte) bool {
 		log.Errorf("addr: %v, io.ReadAll err: %v", leaderAddr, err)
 		return false
 	}
-	log.Debugf("resp.Body: %v", all)
+	//log.Debugf("resp.Body: %v,%v", all[0], string(all[1:]))
 	if all[0] == Success {
 		writeSuccess(all[1:])
 		return true
 	} else if all[0] == Forward {
-		*lastLeaderId = int(all[0])
+		*lastLeaderId = int(all[1])
+		log.Debugf("leader节点变化: %v", *lastLeaderId)
 		return false
 	} else if all[0] == Failed {
 		writeFailed(all[1:])
@@ -147,7 +148,7 @@ func LookForCan(trialLeaderId int, userCommand []byte) (*http.Response, bool) {
 }
 
 func writeAngle() {
-	_, _ = w.Write([]byte(">"))
+	_, _ = w.Write([]byte("> "))
 	_ = w.Flush()
 }
 func writeSuccess(result []byte) {

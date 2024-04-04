@@ -54,7 +54,7 @@ func NewRaft(me int, addrs []string,
 	r.rwJudge = rwJudge                 // 上层状态机的命令读写判断实现
 	r.clientCommands = clientCommands   // 上层状态机传递的用户层命令
 	r.apply = apply                     // 上层状态机的应用实现
-	state, _ := r.ReadState()           // 阅读状态
+	state, _ := r.readState()           // 阅读状态
 	if state == nil {
 		r.currentTerm = 0
 		r.votedFor = -1

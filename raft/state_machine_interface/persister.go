@@ -20,18 +20,18 @@ type Persister interface {
 //	}
 //}
 //
-//func (p *FilePersister) SaveState(meta []byte) error {
+//func (p *FilePersister) saveState(meta []byte) error {
 //	if err := os.WriteFile(p.metaDataFilePath, meta, 0644); err != nil {
 //		return fmt.Errorf("os.WriteFile err: %v", err)
 //	}
 //	return nil
 //}
 //
-//func (p *FilePersister) ReadState() ([]byte, error) {
+//func (p *FilePersister) readState() ([]byte, error) {
 //	return os.ReadFile(p.metaDataFilePath)
 //}
 //
-//func (p *FilePersister) Persist(data [][]byte) error {
+//func (p *FilePersister) persist(data [][]byte) error {
 //	// 打开文件，以追加模式写入
 //	file, err := os.OpenFile(p.filePath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 //	if err != nil {

@@ -37,6 +37,7 @@ func (r *Raft) doHeartbeat() {
 		prevLogIndex, prevLogTerm := r.getServerPrevLogIndexAndTerm(i)
 
 		if r.lastIncludeIndex > prevLogIndex { // 落后太久，使用快照同步
+			log.Warnf("落后太久，使用快照同步, server: %v,r.lastIncludeIndex: %v,prevLogIndex: %v", i, r.lastIncludeIndex, prevLogTerm)
 			snapshot := r.Snapshot()
 			req := &rpc.InstallSnapshotReq{
 				Term:             int64(r.currentTerm),
@@ -46,12 +47,12 @@ func (r *Raft) doHeartbeat() {
 				Data:             snapshot,
 			}
 			go func(server int) {
-				resp, err := r.peers[i].InstallSnapshot(context.Background(), req)
+				resp, err := r.peers[server].InstallSnapshot(context.Background(), req)
 				if err != nil {
-					log.Errorf("发送快照心跳失败 节点id:%d err: %v", i, err)
+					log.Errorf("发送快照心跳失败 节点id:%d err: %v", server, err)
 					return
 				}
-				log.Debugf("发送快照心跳 节点id:%d req.Term:%d,LastIncludeIndex:%d,LastIncludeTerm:%d", i, req.Term, req.LastIncludeIndex, req.LastIncludeTerm)
+				log.Debugf("发送快照心跳 节点id:%d req.Term:%d,LastIncludeIndex:%d,LastIncludeTerm:%d", server, req.Term, req.LastIncludeIndex, req.LastIncludeTerm)
 				r.handleInstallSnapshotResp(r.lastIncludeIndex, server, resp)
 			}(i)
 		} else { // 使用日志同步
@@ -75,9 +76,7 @@ func (r *Raft) doHeartbeat() {
 				}
 			}
 			go func(server int) {
-				ctx, cancel := context.WithTimeout(context.Background(), time.Duration(common.RpcTimeout)*time.Millisecond)
-				defer cancel()
-				resp, err := r.peers[server].AppendEntries(ctx, req)
+				resp, err := r.peers[server].AppendEntries(context.Background(), req)
 				if err != nil {
 					log.Errorf("发送日志心跳失败 节点id:%d err: %v", server, err)
 					return
@@ -105,7 +104,7 @@ func (r *Raft) handleAppendEntriesResp(sendLastLogIndex int, server int, resp *r
 		r.currentTerm = int(resp.Term)
 		r.status = common.Follower
 		r.votedFor = -1
-		r.SaveState()
+		r.saveState()
 		log.Debugf("收到server:%d日志心跳回复，它的term:%d比我:%d的大，更新自己term，成为Follower", server, resp.Term, r.currentTerm)
 		return
 	}
@@ -135,7 +134,8 @@ func (r *Raft) handleAppendEntriesResp(sendLastLogIndex int, server int, resp *r
 					r.commitIndex = n
 					// 应用指令
 					r.applyLog()
-					r.Persist()
+					r.persist()
+					r.saveState()
 					log.Debugf("日志索引:%d, 超过半数match，提交索引并应用", r.commitIndex)
 					break
 				}
@@ -161,6 +161,7 @@ func (r *Raft) handleInstallSnapshotResp(sendLastLogIndex int, server int, resp 
 		r.currentTerm = int(resp.Term)
 		r.status = common.Follower
 		r.votedFor = -1
+		r.saveState()
 		log.Debugf("收到server:%d快照心跳回复，它的term:%d比我:%d的大，更新自己term，成为Follower", server, resp.Term, r.currentTerm)
 		return
 	}
@@ -185,6 +186,8 @@ func (r *Raft) handleInstallSnapshotResp(sendLastLogIndex int, server int, resp 
 			r.commitIndex = n
 			// 应用指令
 			r.applyLog()
+			r.persist()
+			r.saveState()
 			log.Debugf("日志索引:%d, 超过半数match，提交索引并应用", r.commitIndex)
 			break
 		}
@@ -209,6 +212,8 @@ func (r *Raft) AppendEntries(_ context.Context, req *rpc.AppendEntriesReq) (*rpc
 	if int(req.Term) > r.currentTerm {
 		r.currentTerm = int(req.Term)
 		r.status = common.Follower
+		r.votedFor = -1
+		r.saveState()
 	}
 	// req.Term == r.currentTerm
 	r.leaderId = int(req.LeaderId)
@@ -259,6 +264,8 @@ func (r *Raft) AppendEntries(_ context.Context, req *rpc.AppendEntriesReq) (*rpc
 		r.commitIndex = min(int(req.LeaderCommit), lastLogIndex)
 		// 应用指令
 		r.applyLog()
+		r.persist()
+		r.saveState()
 		log.Debugf("日志索引:%d, 提交索引并应用", r.commitIndex)
 	}
 	resp.Term = int64(r.currentTerm)
@@ -281,16 +288,16 @@ func (r *Raft) InstallSnapshot(_ context.Context, req *rpc.InstallSnapshotReq) (
 		r.currentTerm = int(req.Term)
 		r.status = common.Follower
 		r.votedFor = -1
-		r.SaveState()
+		r.saveState()
 	}
 	// term == r.currentTerm
 	if r.lastIncludeIndex != int(req.LastIncludeIndex) || r.lastIncludeTerm != int(req.LastIncludeTerm) { // 丢掉logs
 		r.logs = nil
 	}
-	r.ReplaceSnapshot(req.Data) // 丢弃旧的快照，存储新的快照
+	r.replaceSnapshot(req.Data) // 丢弃旧的快照，存储新的快照
 	r.lastIncludeIndex = int(req.LastIncludeIndex)
 	r.lastIncludeTerm = int(req.LastIncludeTerm)
-	r.SaveState()
+	r.saveState()
 	// 重置状态机
 	r.Reset()
 	r.commitIndex = r.lastIncludeIndex
@@ -306,6 +313,11 @@ func (r *Raft) getServerPrevLogIndexAndTerm(server int) (prevLogIndex, prevLogTe
 	if prevLogIndex == 0 {
 		return 0, 0
 	}
+	if prevLogIndex == r.lastIncludeIndex {
+		prevLogTerm = r.lastIncludeTerm
+		return
+	}
+	log.Errorf("server: %v, r.nextIndex[server]: %v,prevLogIndex: %v, r.lastIncludeIndex: %v, r.lastIncludeTerm: %v", server, r.nextIndex[server], prevLogIndex, r.lastIncludeIndex, r.lastIncludeTerm)
 	prevLogTerm = r.logs[r.getSliceIndexByLogIndex(prevLogIndex)].Term
 	return
 }
@@ -327,5 +339,8 @@ func (r *Raft) isExistLogByIndex(logIndex int) bool {
 
 // 确保先确保索引存在
 func (r *Raft) getLogTermByIndex(logIndex int) (logTerm int) {
+	if logIndex == r.lastIncludeIndex {
+		return r.lastIncludeTerm
+	}
 	return r.logs[r.getSliceIndexByLogIndex(logIndex)].Term
 }

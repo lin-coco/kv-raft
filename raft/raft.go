@@ -48,7 +48,7 @@ type Raft struct {
 
 func (r *Raft) getLastLogIndexAndTerm() (lastLogIndex, lastLogTerm int) {
 	if len(r.logs) == 0 {
-		return 0, 0
+		return r.lastIncludeIndex, r.lastIncludeTerm
 	}
 	return r.logs[len(r.logs)-1].Index, r.logs[len(r.logs)-1].Term
 }

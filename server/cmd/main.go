@@ -59,7 +59,7 @@ func Server(config *kv_raft.Config) error {
 	defer func() {
 		_ = logFile.Close()
 	}()
-	stateFile, err := os.OpenFile(config.StateStorageFile, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0644)
+	stateFile, err := os.OpenFile(config.StateStorageFile, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0644)
 	if err != nil {
 		return fmt.Errorf("os.OpenFile err: %v", err)
 	}
@@ -122,6 +122,17 @@ func RunKVServer(config *kv_raft.Config, r *raft.Raft, clientCommands chan strin
 			reply(writer, Failed, []byte(err.Error()))
 			return
 		}
+		// 检查是不是只读，只读可以直接返回
+		if only := server.CheckReadOnly(command); only {
+			b, leaderId = r.IsLeader()
+			if !b {
+				reply(writer, Forward, []byte{byte(leaderId)})
+				return
+			}
+			result := server.ExecCommand(command)
+			reply(writer, Success, []byte(result))
+			return
+		}
 		// 发送命令
 		if server.Reqs[requestID] != nil {
 			_, err = writer.Write([]byte("repeated submissions"))
@@ -144,8 +155,7 @@ func RunKVServer(config *kv_raft.Config, r *raft.Raft, clientCommands chan strin
 }
 
 func reply(w http.ResponseWriter, b byte, result []byte) {
-	res := make([]byte, 0, 1+len(result))
-	res = append([]byte{b}, res...)
+	res := append([]byte{b}, result...)
 	_, err := w.Write(res)
 	if err != nil {
 		log.Error("writer.Write err: %v", err)

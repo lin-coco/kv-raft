@@ -1,4 +1,4 @@
 package server
 
 // Reqs key: requestID value: result
-var Reqs map[string]chan string
+var Reqs = make(map[string]chan string)

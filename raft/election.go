@@ -26,7 +26,7 @@ func (r *Raft) startElection() {
 			r.mutex.Unlock()
 		} else if r.lastElectionTime > flagTime {
 			// 自己不是leader，超时选举时间被刷新了，说明在此期间收到了心跳，开始下一次睡眠
-			log.Debugf("从%d到now 收到了心跳", flagTime)
+			log.Debugf("从%d到now 收到了心跳，不进行选举", flagTime)
 			r.mutex.Unlock()
 		} else {
 			// 自己不是leader，超时选举时间没有被刷新，说明leader不可用
@@ -47,7 +47,7 @@ func (r *Raft) doElection() {
 	r.status = common.Candidate
 	// 3. 为自己投票
 	r.votedFor = r.me
-	r.SaveState()
+	r.saveState()
 	voteNum := 1 // 自己获得的投票数
 	log.Debugf("开始执行选举 转换成Candidate，任期CurrentTerm自增到:%d，为自己投票VotedNum:%d", r.currentTerm, voteNum)
 	//4. 重置选举计时器
@@ -91,7 +91,7 @@ func (r *Raft) handleRequestVoteResp(server int, resp *rpc.RequestVoteResp, vote
 		r.currentTerm = int(resp.Term)
 		r.status = common.Follower
 		r.votedFor = -1
-		r.SaveState()
+		r.saveState()
 		log.Debugf("收到server:%d回复选举 serverTerm:%d比my.currentTerm:%d大 从Candidate变成Follower", server, resp.Term, r.currentTerm)
 		return
 	} else if int(resp.Term) < r.currentTerm { // 网络延迟较大的情况会出现term < currentTerm。投票过后成为leader会出现这种情况
@@ -110,7 +110,7 @@ func (r *Raft) handleRequestVoteResp(server int, resp *rpc.RequestVoteResp, vote
 				r.currentTerm++
 				r.votedFor = -1
 				r.leaderId = r.me
-				r.SaveState()
+				r.saveState()
 				lastLogIndex, _ := r.getLastLogIndexAndTerm()
 				for i := 0; i < len(r.peers); i++ {
 					if i == r.me {
@@ -148,6 +148,7 @@ func (r *Raft) RequestVote(_ context.Context, req *rpc.RequestVoteReq) (*rpc.Req
 		r.currentTerm = int(req.Term)
 		r.status = common.Follower
 		r.votedFor = -1
+		r.saveState()
 	}
 	// term == r.currentTerm
 	// 检查lastLogIndex和lastLogTerm
@@ -158,6 +159,7 @@ func (r *Raft) RequestVote(_ context.Context, req *rpc.RequestVoteReq) (*rpc.Req
 			resp.VoteGranted = true
 			r.votedFor = int(req.CandidateId)
 			r.lastElectionTime = time.Now().UnixMilli() // 投完票，重置选举时间
+			r.saveState()
 			log.Debugf("收到了server:%d选举 我的日志比它旧或一样，同意投票", req.CandidateId)
 			return &resp, nil
 		} else { // 已经投给其他candidate了
