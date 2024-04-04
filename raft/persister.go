@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 
+	log "github.com/sirupsen/logrus"
+
 	"kv-raft/raft/common"
 )
 
@@ -60,6 +62,7 @@ func (r *Raft) readState() (*common.State, error) {
 	if err != nil {
 		panic(err)
 	}
+	log.Infof("last state: %v", string(bytes))
 	var state common.State
 	if err = json.Unmarshal(bytes, &state); err != nil {
 		return nil, fmt.Errorf("json.Unmarshal err: %v", err)

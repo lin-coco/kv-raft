@@ -34,10 +34,10 @@ func (r *Raft) doHeartbeat() {
 		if i == r.me {
 			continue
 		}
-		prevLogIndex, prevLogTerm := r.getServerPrevLogIndexAndTerm(i)
-
+		//prevLogIndex, prevLogTerm := r.getServerPrevLogIndexAndTerm(i)
+		prevLogIndex := r.getServerPrevLogIndex(i)
 		if r.lastIncludeIndex > prevLogIndex { // 落后太久，使用快照同步
-			log.Warnf("落后太久，使用快照同步, server: %v,r.lastIncludeIndex: %v,prevLogIndex: %v", i, r.lastIncludeIndex, prevLogTerm)
+			log.Warnf("落后太久，使用快照同步, server: %v,r.lastIncludeIndex: %v,prevLogIndex: %v", i, r.lastIncludeIndex, prevLogIndex)
 			snapshot := r.Snapshot()
 			req := &rpc.InstallSnapshotReq{
 				Term:             int64(r.currentTerm),
@@ -56,6 +56,7 @@ func (r *Raft) doHeartbeat() {
 				r.handleInstallSnapshotResp(r.lastIncludeIndex, server, resp)
 			}(i)
 		} else { // 使用日志同步
+			prevLogTerm := r.getLogTermByIndex(prevLogIndex)
 			req := &rpc.AppendEntriesReq{
 				Term:         int64(r.currentTerm),
 				LeaderId:     int64(r.me),
@@ -308,17 +309,21 @@ func (r *Raft) InstallSnapshot(_ context.Context, req *rpc.InstallSnapshotReq) (
 	return &resp, nil
 }
 
-func (r *Raft) getServerPrevLogIndexAndTerm(server int) (prevLogIndex, prevLogTerm int) {
+//	func (r *Raft) getServerPrevLogIndexAndTerm(server int) (prevLogIndex, prevLogTerm int) {
+//		prevLogIndex = r.nextIndex[server] - 1
+//		if prevLogIndex == 0 {
+//			return 0, 0
+//		}
+//		if prevLogIndex == r.lastIncludeIndex {
+//			prevLogTerm = r.lastIncludeTerm
+//			return
+//		}
+//		log.Errorf("server: %v, r.nextIndex[server]: %v,prevLogIndex: %v, r.lastIncludeIndex: %v, r.lastIncludeTerm: %v", server, r.nextIndex[server], prevLogIndex, r.lastIncludeIndex, r.lastIncludeTerm)
+//		prevLogTerm = r.logs[r.getSliceIndexByLogIndex(prevLogIndex)].Term
+//		return
+//	}
+func (r *Raft) getServerPrevLogIndex(server int) (prevLogIndex int) {
 	prevLogIndex = r.nextIndex[server] - 1
-	if prevLogIndex == 0 {
-		return 0, 0
-	}
-	if prevLogIndex == r.lastIncludeIndex {
-		prevLogTerm = r.lastIncludeTerm
-		return
-	}
-	log.Errorf("server: %v, r.nextIndex[server]: %v,prevLogIndex: %v, r.lastIncludeIndex: %v, r.lastIncludeTerm: %v", server, r.nextIndex[server], prevLogIndex, r.lastIncludeIndex, r.lastIncludeTerm)
-	prevLogTerm = r.logs[r.getSliceIndexByLogIndex(prevLogIndex)].Term
 	return
 }
 
@@ -337,8 +342,11 @@ func (r *Raft) isExistLogByIndex(logIndex int) bool {
 	return true
 }
 
-// 确保先确保索引存在
-func (r *Raft) getLogTermByIndex(logIndex int) (logTerm int) {
+// 确保索引存在
+func (r *Raft) getLogTermByIndex(logIndex int) int {
+	if logIndex == 0 {
+		return 0
+	}
 	if logIndex == r.lastIncludeIndex {
 		return r.lastIncludeTerm
 	}

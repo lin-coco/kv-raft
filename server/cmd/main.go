@@ -59,7 +59,7 @@ func Server(config *kv_raft.Config) error {
 	defer func() {
 		_ = logFile.Close()
 	}()
-	stateFile, err := os.OpenFile(config.StateStorageFile, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0644)
+	stateFile, err := os.OpenFile(config.StateStorageFile, os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {
 		return fmt.Errorf("os.OpenFile err: %v", err)
 	}
