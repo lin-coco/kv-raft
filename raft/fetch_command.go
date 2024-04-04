@@ -10,6 +10,7 @@ func (r *Raft) startFetchCommand() {
 	for command := range r.clientCommands {
 		r.mutex.Lock()
 		if r.status == common.Leader {
+			log.Debugf("收到状态机命令: %v, 是leader 将加入日志", command)
 			lastLogIndex, _ := r.getLastLogIndexAndTerm()
 			r.logs = append(r.logs, common.LogEntry{
 				Command: command,
@@ -17,7 +18,7 @@ func (r *Raft) startFetchCommand() {
 				Index:   lastLogIndex + 1,
 			})
 		} else {
-			log.Warnf("not a leader, will be discarded: %v", command)
+			log.Debugf("收到状态机命令: %v, 不是leader 将丢弃", command)
 		}
 		r.mutex.Unlock()
 	}

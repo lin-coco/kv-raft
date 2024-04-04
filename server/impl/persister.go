@@ -30,15 +30,22 @@ func (f FilePersister) ReplaceSnapshot(data []byte) error {
 	if err := f.LogFile.Truncate(0); err != nil {
 		return fmt.Errorf("f.File.Truncate err: %v", err)
 	}
+	// 将文件指针位置设置为文件开头
+	if _, err := f.LogFile.Seek(0, 0); err != nil {
+		return fmt.Errorf("f.LogFile.Seek err: %v", err)
+	}
 	_, err := f.LogFile.Write(data)
 	if err != nil {
 		return fmt.Errorf("f.File.Write err: %v", err)
 	}
-	_ = f.LogFile.Sync()
 	return nil
 }
 
 func (f FilePersister) Snapshot() ([]byte, error) {
+	_, err := f.LogFile.Seek(0, 0)
+	if err != nil {
+		return nil, fmt.Errorf("f.LogFile.Seek err: %v", err)
+	}
 	all, err := io.ReadAll(f.LogFile)
 	if err != nil {
 		return nil, fmt.Errorf("io.ReadAll err: %v", err)
@@ -52,7 +59,7 @@ func (f FilePersister) SaveState(state []byte) error {
 	}
 	// 将文件指针位置设置为文件开头
 	if _, err := f.StateFile.Seek(0, 0); err != nil {
-		return fmt.Errorf("f.File.Seek err: %v", err)
+		return fmt.Errorf("f.StateFile.Seek err: %v", err)
 	}
 	_, err := f.StateFile.Write(state)
 	if err != nil {

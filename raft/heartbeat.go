@@ -39,6 +39,7 @@ func (r *Raft) doHeartbeat() {
 		if r.lastIncludeIndex > prevLogIndex { // 落后太久，使用快照同步
 			log.Warnf("落后太久，使用快照同步, server: %v,r.lastIncludeIndex: %v,prevLogIndex: %v", i, r.lastIncludeIndex, prevLogIndex)
 			snapshot := r.Snapshot()
+			log.Debugf("快照长度: %v", len(snapshot))
 			req := &rpc.InstallSnapshotReq{
 				Term:             int64(r.currentTerm),
 				LeaderId:         int64(r.me),
@@ -131,6 +132,7 @@ func (r *Raft) handleAppendEntriesResp(sendLastLogIndex int, server int, resp *r
 						matchCount++
 					}
 				}
+				matchCount++ // 执行++为什么？因为leader节点也算
 				if matchCount >= len(r.peers)/2+1 {
 					r.commitIndex = n
 					// 应用指令
