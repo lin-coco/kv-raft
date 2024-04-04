@@ -111,9 +111,9 @@ func RunKVServer(config *kv_raft.Config, r *raft.Raft, clientCommands chan strin
 			return
 		}
 		// 校验requestId
-		requestID := request.Header.Get("KV-Raft-Request-ID")
+		requestID := request.Header.Get("kv-raft-request-id")
 		if len(requestID) != 36 {
-			reply(writer, Failed, []byte("length of the request ID is incorrect"))
+			reply(writer, Failed, []byte("length of the request ID is incorrect: "+requestID))
 			return
 		}
 		// 校验命令的正确性

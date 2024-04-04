@@ -74,7 +74,7 @@ func NewRaft(me int, addrs []string,
 			r.Reset()
 		}
 		r.commitIndex = r.lastIncludeIndex // 上层状态机已经应用了快照
-		r.lastApplied = r.lastIncludeTerm  // 上层状态机已经应用了快照
+		r.lastApplied = r.lastIncludeIndex // 上层状态机已经应用了快照
 	}
 	r.nextIndex = make([]int, len(peers))
 	for i := 0; i < len(r.nextIndex); i++ {

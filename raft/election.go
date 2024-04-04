@@ -88,11 +88,11 @@ func (r *Raft) handleRequestVoteResp(server int, resp *rpc.RequestVoteResp, vote
 		return
 	}
 	if int(resp.Term) > r.currentTerm {
+		log.Debugf("收到server:%d回复选举 serverTerm:%d比my.currentTerm:%d大 从Candidate变成Follower", server, resp.Term, r.currentTerm)
 		r.currentTerm = int(resp.Term)
 		r.status = common.Follower
 		r.votedFor = -1
 		r.saveState()
-		log.Debugf("收到server:%d回复选举 serverTerm:%d比my.currentTerm:%d大 从Candidate变成Follower", server, resp.Term, r.currentTerm)
 		return
 	} else if int(resp.Term) < r.currentTerm { // 网络延迟较大的情况会出现term < currentTerm。投票过后成为leader会出现这种情况
 		log.Debugf("收到server:%d回复选举 收到的term比自己小，可能已经有下一个leader被选举出，或者网络延迟较大 server:%d resp.Term:%d r.currentTerm:%d", server, resp.Term, r.currentTerm, r.currentTerm)

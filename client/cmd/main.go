@@ -83,9 +83,10 @@ func Client(config *kv_raft.Config) error {
 			// 空
 			continue
 		}
-		if b := SendCommand(&lastLeaderId, userCommand); !b {
+		requestID := uuid.New().String()
+		if b := SendCommand(&lastLeaderId, userCommand, requestID); !b {
 			for i := 0; i < retry; i++ {
-				b = SendCommand(&lastLeaderId, userCommand)
+				b = SendCommand(&lastLeaderId, userCommand, requestID)
 				if b {
 					break
 				}
@@ -95,11 +96,11 @@ func Client(config *kv_raft.Config) error {
 }
 
 // SendCommand 返回结果是否成功发送并响应
-func SendCommand(lastLeaderId *int, userCommand []byte) bool {
+func SendCommand(lastLeaderId *int, userCommand []byte, requestID string) bool {
 	leaderAddr := config.Addrs[*lastLeaderId].Server
 	req, _ := http.NewRequest("POST", "http://"+leaderAddr+"/receive", bytes.NewBuffer(userCommand))
 	req.Header.Set("Content-Type", "application/stream+json")
-	req.Header.Set("KV-Raft-Request-ID", uuid.New().String())
+	req.Header.Set("kv-raft-request-id", requestID)
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	//resp, err := http.Post("http://"+leaderAddr+"/receive", "application/stream+json", bytes.NewBuffer(userCommand))
@@ -123,6 +124,7 @@ func SendCommand(lastLeaderId *int, userCommand []byte) bool {
 	}
 	//log.Debugf("resp.Body: %v,%v", all[0], string(all[1:]))
 	if all[0] == Success {
+		log.Infof("请求id: %v, size: %v", requestID, len(requestID))
 		writeSuccess(all[1:])
 		return true
 	} else if all[0] == Forward {
@@ -130,6 +132,7 @@ func SendCommand(lastLeaderId *int, userCommand []byte) bool {
 		log.Debugf("leader节点变化: %v", *lastLeaderId)
 		return false
 	} else if all[0] == Failed {
+		log.Infof("请求id: %v, size: %v", requestID, len(requestID))
 		writeFailed(all[1:])
 		return true
 	} else {
@@ -153,12 +156,12 @@ func writeAngle() {
 }
 func writeSuccess(result []byte) {
 	result = append(result, '\n')
-	_, _ = w.Write(append([]byte("success: "), result...))
+	_, _ = w.Write(append([]byte("success: \n"), result...))
 	_ = w.Flush()
 }
 
 func writeFailed(result []byte) {
 	result = append(result, '\n')
-	_, _ = w.Write(append([]byte("failed: "), result...))
+	_, _ = w.Write(append([]byte("failed: \n"), result...))
 	_ = w.Flush()
 }
