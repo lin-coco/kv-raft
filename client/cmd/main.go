@@ -83,6 +83,10 @@ func Client(config *kv_raft.Config) error {
 			// 空
 			continue
 		}
+		if strCommand := string(userCommand); strCommand == "exit" || strCommand == "quit" || strCommand == "q" {
+			fmt.Println("bye")
+			break
+		}
 		requestID := uuid.New().String()
 		if b := SendCommand(&lastLeaderId, userCommand, requestID); !b {
 			for i := 0; i < retry; i++ {
@@ -93,6 +97,7 @@ func Client(config *kv_raft.Config) error {
 			}
 		}
 	}
+	return nil
 }
 
 // SendCommand 返回结果是否成功发送并响应
