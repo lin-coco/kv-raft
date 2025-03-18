@@ -137,7 +137,7 @@ func RunKVServer(config *kv_raft.Config, r *raft.Raft, clientCommands chan strin
 		if server.Reqs[requestID] != nil {
 			_, err = writer.Write([]byte("repeated submissions"))
 			if err != nil {
-				log.Error("writer.Write err: %v", err)
+				log.Errorf("writer.Write err: %v", err)
 				return
 			}
 		}
@@ -158,6 +158,6 @@ func reply(w http.ResponseWriter, b byte, result []byte) {
 	res := append([]byte{b}, result...)
 	_, err := w.Write(res)
 	if err != nil {
-		log.Error("writer.Write err: %v", err)
+		log.Errorf("writer.Write err: %v", err)
 	}
 }
