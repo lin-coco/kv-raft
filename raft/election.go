@@ -17,7 +17,7 @@ startElection 一段时间内没有收到心跳，就开始一次选举
 func (r *Raft) startElection() {
 	for {
 		// 睡眠
-		flagTime := time.Now().UnixMilli()                                     // 标记开始时间
+		flagTime := time.Now().UnixMilli()                                          // 标记开始时间
 		time.Sleep(time.Duration(getRandElectionTimeout()) * time.Millisecond) // 睡眠本次选举超时时间
 		// 检查是否选举要发生
 		r.mutex.Lock()
@@ -45,6 +45,7 @@ func (r *Raft) doElection() {
 	r.currentTerm++
 	// 2. 转换到候选者
 	r.status = common.Candidate
+	r.setNodeInfoCandidate()
 	// 3. 为自己投票
 	r.votedFor = r.me
 	r.saveState()
@@ -91,6 +92,8 @@ func (r *Raft) handleRequestVoteResp(server int, resp *rpc.RequestVoteResp, vote
 		log.Debugf("收到server:%d回复选举 serverTerm:%d比my.currentTerm:%d大 从Candidate变成Follower", server, resp.Term, r.currentTerm)
 		r.currentTerm = int(resp.Term)
 		r.status = common.Follower
+		r.setNodeInfoFollower(r.me)
+
 		r.votedFor = -1
 		r.saveState()
 		return
@@ -107,9 +110,10 @@ func (r *Raft) handleRequestVoteResp(server int, resp *rpc.RequestVoteResp, vote
 		} else {
 			if *voteNum >= len(r.peers)/2+1 { // 获得了大多数的投票，变成leader
 				r.status = common.Leader
+				r.setNodeInfoLeader(r.me)
 				r.currentTerm++
 				r.votedFor = -1
-				r.leaderId = r.me
+				r.LeaderId = r.me
 				r.saveState()
 				lastLogIndex, _ := r.getLastLogIndexAndTerm()
 				for i := 0; i < len(r.peers); i++ {
@@ -147,6 +151,7 @@ func (r *Raft) RequestVote(_ context.Context, req *rpc.RequestVoteReq) (*rpc.Req
 	if int(req.Term) > r.currentTerm { // 更新自己的term
 		r.currentTerm = int(req.Term)
 		r.status = common.Follower
+		r.setNodeInfoFollower(r.me)
 		r.votedFor = -1
 		r.saveState()
 	}

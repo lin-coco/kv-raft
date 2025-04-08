@@ -33,6 +33,7 @@ func NewRaft(me int, addrs []string,
 			panic(err)
 		}
 	}()
+	var nodeInfos []NodeInfo
 	var peers []rpc.RaftRpcClient
 	for i, addr := range addrs {
 		if i == me {
@@ -40,12 +41,18 @@ func NewRaft(me int, addrs []string,
 		} else {
 			peers = append(peers, rpc.NewRpcClient(addr))
 		}
+		nodeInfos = append(nodeInfos, NodeInfo{
+			Addr:   addr,
+			Alive:  true,
+			Statue: common.Follower, // 初始时都为Follower
+		})
 	}
 	log.Debug("has collected all rpc client.")
 	r.mutex = sync.Mutex{}
 	r.me = me // 自己索引
 	log.Infof("me: %d", r.me)
-	r.leaderId = -1
+	r.LeaderId = -1
+	r.nodeInfos = nodeInfos             // 节点状态
 	r.peers = peers                     // 所有节点的通讯
 	r.status = common.Follower          // 初始时都为follower
 	r.logs = make([]common.LogEntry, 0) // logEntry
@@ -96,7 +103,7 @@ func (r *Raft) Start() {
 // 不需要加锁，即使获得了旧的数据，也不影响
 func (r *Raft) IsLeader() (bool, int) {
 	if r.status == common.Leader {
-		return true, r.leaderId
+		return true, r.LeaderId
 	}
-	return false, r.leaderId
+	return false, r.LeaderId
 }

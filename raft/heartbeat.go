@@ -105,6 +105,7 @@ func (r *Raft) handleAppendEntriesResp(sendLastLogIndex int, server int, resp *r
 	if int(resp.Term) > r.currentTerm {
 		r.currentTerm = int(resp.Term)
 		r.status = common.Follower
+		r.setNodeInfoFollower(r.me)
 		r.votedFor = -1
 		r.saveState()
 		log.Debugf("收到server:%d日志心跳回复，它的term:%d比我:%d的大，更新自己term，成为Follower", server, resp.Term, r.currentTerm)
@@ -163,6 +164,7 @@ func (r *Raft) handleInstallSnapshotResp(sendLastLogIndex int, server int, resp 
 	if int(resp.Term) > r.currentTerm {
 		r.currentTerm = int(resp.Term)
 		r.status = common.Follower
+		r.setNodeInfoFollower(r.me)
 		r.votedFor = -1
 		r.saveState()
 		log.Debugf("收到server:%d快照心跳回复，它的term:%d比我:%d的大，更新自己term，成为Follower", server, resp.Term, r.currentTerm)
@@ -215,11 +217,12 @@ func (r *Raft) AppendEntries(_ context.Context, req *rpc.AppendEntriesReq) (*rpc
 	if int(req.Term) > r.currentTerm {
 		r.currentTerm = int(req.Term)
 		r.status = common.Follower
+		r.setNodeInfoFollower(r.me)
 		r.votedFor = -1
 		r.saveState()
 	}
 	// req.Term == r.currentTerm
-	r.leaderId = int(req.LeaderId)
+	r.LeaderId = int(req.LeaderId)
 	lastLogIndex, _ := r.getLastLogIndexAndTerm()
 	if req.PrevLogIndex != 0 {
 		if lastLogIndex < int(req.PrevLogIndex) { // 本节点不包含prevLogIndex，返回false
@@ -290,6 +293,7 @@ func (r *Raft) InstallSnapshot(_ context.Context, req *rpc.InstallSnapshotReq) (
 	} else if int(req.Term) > r.currentTerm {
 		r.currentTerm = int(req.Term)
 		r.status = common.Follower
+		r.setNodeInfoFollower(r.me)
 		r.votedFor = -1
 		r.saveState()
 	}

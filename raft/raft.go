@@ -9,11 +9,12 @@ import (
 )
 
 type Raft struct {
-	mutex    sync.Mutex
-	me       int
-	peers    []rpc.RaftRpcClient // 与其他节点通信的rpc入口
-	status   common.Status       // 身份
-	leaderId int
+	mutex     sync.Mutex
+	me        int
+	nodeInfos []NodeInfo
+	peers     []rpc.RaftRpcClient // 与其他节点通信的rpc入口
+	status    common.Status       // 身份
+	LeaderId  int
 	// Persistent state on all servers:
 	currentTerm int               // 当前term
 	votedFor    int               // 记录当前term给谁投票了
@@ -44,6 +45,51 @@ type Raft struct {
 	// 判断是否是只读命令
 	rwJudge state_machine_interface.RWJudge
 	rpc.UnimplementedRaftRpcServer
+}
+
+func (r *Raft) GetMeId() int {
+	return r.me
+}
+
+type NodeInfo struct {
+	// 地址
+	Addr string
+	// 身份
+	Statue common.Status
+	// 心跳（存活）
+	Alive bool
+}
+
+func (r *Raft) GetNodeInfos() []NodeInfo {
+	return r.nodeInfos
+}
+
+func (r *Raft) GetNodeInfo() NodeInfo {
+	return r.nodeInfos[r.me]
+}
+
+func (r *Raft) GetNodeLeaderInfo() NodeInfo {
+	return r.nodeInfos[r.LeaderId]
+}
+
+func (r *Raft) setNodeInfoCandidate() {
+	for i := 0; i < len(r.nodeInfos); i++ {
+		r.nodeInfos[i].Statue = common.Candidate
+	}
+}
+
+func (r *Raft) setNodeInfoLeader(leaderId int) {
+	for i := 0; i < len(r.nodeInfos); i++ {
+		if i == leaderId {
+			r.nodeInfos[i].Statue = common.Leader
+		} else {
+			r.nodeInfos[i].Statue = common.Follower
+		}
+	}
+}
+
+func (r *Raft) setNodeInfoFollower(followerId int) {
+	r.nodeInfos[followerId].Statue = common.Follower
 }
 
 func (r *Raft) getLastLogIndexAndTerm() (lastLogIndex, lastLogTerm int) {

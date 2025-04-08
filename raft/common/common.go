@@ -7,9 +7,9 @@ const (
 	Follower  = 2 // 跟随者
 	Candidate = 3 // 候选者
 
-	ElectionBaseTimeout     = 150 // 选举基准超时时间（毫秒）
-	ElectionMaxExtraTimeout = 150 // 选举额外最大超时时间（毫秒）
-	HeartbeatTimeout        = 25  // 心跳时间超时时间（毫秒）
+	ElectionBaseTimeout     = 1500 // 选举基准超时时间（毫秒）
+	ElectionMaxExtraTimeout = 1500 // 选举额外最大超时时间（毫秒）
+	HeartbeatTimeout        = 250  // 心跳时间超时时间（毫秒）
 
 	//RpcTimeout = 10 // rpc超时时间，设置100毫秒
 )

@@ -11,6 +11,6 @@
     "raft": "127.0.0.1:9002"
   }
   ],
-  "log_storage_file": "./server/data0",
-  "state_storage_file": "./server/state0"
+  "log_storage_file": "./data/storage0",
+  "state_storage_file": "./data/state0"
 }
