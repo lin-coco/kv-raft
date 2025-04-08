@@ -2,6 +2,7 @@ package client
 
 import (
 	"bytes"
+	"encoding/csv"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"kv-raft/raft"
 	"kv-raft/server/command"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -174,6 +176,106 @@ func (c Client) NodeGet() (raft.NodeInfo, error) {
 		return resp, err
 	}
 	json.Unmarshal([]byte(result), &resp)
+	return resp, nil
+}
+
+type ImportResp struct {
+	ImportNums int `json:"import_nums"`
+}
+
+/*
+csv: key,value
+json: {"key1": "value1","key2": "value2"}
+*/
+func (c Client) Import(f string) (ImportResp, error) {
+	var resp ImportResp
+	// 读取文件
+	file, err := os.Open(f)
+	if err != nil {
+		return resp, err
+	}
+	defer file.Close()
+	// 解析发送
+	if strings.HasSuffix(f,".csv") {
+		reader := csv.NewReader(file)
+		// 跳过首行标题
+		if _, err := reader.Read(); err != nil {
+			return resp, err
+		}
+		// 读取key,value
+		var end bool
+		for !end {
+			// 每读取10行就发送
+			subList := make([]string, 0, 20)
+			for i := 0;i < 10;i++ {
+				record, err := reader.Read()
+				if err != nil {
+					if err == io.EOF { // 文件结束
+						end = true
+						break
+					}
+					return resp, err
+				}
+				if len(record) != 2 {
+					continue
+				}
+				subList = append(subList, record[0], record[1])
+			}
+			if len(subList) == 0 {
+				continue
+			}
+			_, err := c.Put(subList)
+			if err != nil {
+				return resp, err
+			}
+			resp.ImportNums += len(subList) / 2
+		}
+	} else if strings.HasSuffix(f,".json") {
+		bytes, err := io.ReadAll(file)
+		if err != nil {
+			return resp, err
+		}
+		var data map[string]string
+		if err := json.Unmarshal(bytes, &data); err != nil {
+			return resp, err
+		}
+		for k,v := range data {
+			_, err := c.Put([]string{k,v})
+			if err != nil {
+				return resp, err
+			}
+			resp.ImportNums++
+		}
+	} else {
+		return resp, errors.New("不支持的文件格式，目前支持.json .csv")
+	}
+	return resp, nil
+}
+
+type ExportResp struct {
+	ExportNums int `json:"export_nums"`
+}
+
+func (c Client) Export(f string) (ExportResp, error) {
+	var resp ExportResp
+	// 打开文件
+	file, err := os.Open(f)
+	if err != nil {
+		return resp, err
+	}
+	defer file.Close()
+	// 执行命令
+	result, err := c.SendCommand("keys")
+	var keysResp command.KeysResponse
+	json.Unmarshal([]byte(result), &keysResp)
+	data := make(map[string]string)
+	for i := 0;i < len(keysResp.Kvs);i++ {
+		data[keysResp.Kvs[i].Key] = keysResp.Kvs[i].Value
+	}
+	bytes,_ := json.Marshal(data)
+	file.Truncate(0)
+	file.WriteString(string(bytes))
+	resp.ExportNums = len(data)
 	return resp, nil
 }
 

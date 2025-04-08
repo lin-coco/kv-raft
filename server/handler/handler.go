@@ -40,7 +40,6 @@ func ReceiveHandler(w http.ResponseWriter,r *http.Request) {
 		return
 	}
 	normalCmd := command.Normalize(cmd)
-	// if strings.HasPrefix("acl-add")
 	if strings.HasPrefix(string(normalCmd),"acl-add") || 
 		strings.HasPrefix(string(normalCmd),"acl-update") {
 			normalCmd = command.Normalize(cmd + " " + apikey.GenerateApiKey(32))
@@ -79,12 +78,12 @@ func ReceiveHandler(w http.ResponseWriter,r *http.Request) {
 		httptool.ErrorResponse(w, "存在该账号" + account + ", 但不存在账号acl？" + aclGetExactCmd.ExecCMD())
 	}
 	// 检查命令权限
-	//（acl-del、acl-update、acl-add禁止被非root用户）
+	//（acl-del、acl-update、acl-add、acl-all、keys禁止被非root用户）
 	//（acl-add、acl-update需要补充apikey）
 	//（api-get非root账号只能访问自己，root账号访问可以有参数）
 	exactCmd := command.Unmarshal(exactCmdStr)
 	if exactCmd.Name() == "acl-del" ||  exactCmd.Name() == "acl-update" || 
-		exactCmd.Name() == "acl-add" || exactCmd.Name() == "acl-all" {
+		exactCmd.Name() == "acl-add" || exactCmd.Name() == "acl-all" || exactCmd.Name() == "keys" {
 		if account != "root" {
 			httptool.ForbiddenResponse(w)
 			return

@@ -75,6 +75,8 @@ func Check(command NormalCmdStr) error {
 		return existCheck(split)
 	case "rename":
 		return renameCheck(split)
+	case "keys":
+		return keysCheck(split)
 	case "acl-add":
 		return aclAddCheck(split)
 	case "acl-get":
@@ -111,6 +113,8 @@ func Unmarshal(command ExactCmdStr) KVCMD {
 		return existUnmarshal(split)
 	case "rename":
 		return renameUnmarshal(split)
+	case "keys":
+		return keysUnmarshal(split)
 	case "acl-add":
 		return aclAddUnmarshal(split)
 	case "acl-get":
