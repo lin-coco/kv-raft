@@ -77,6 +77,12 @@ func (r *Raft) setNodeInfoCandidate() {
 		r.nodeInfos[i].Statue = common.Candidate
 	}
 }
+func (r *Raft) setNodeInfoDown(i int) {
+	r.nodeInfos[i].Alive = false
+}
+func (r *Raft) setNodeInfoAlive(i int) {
+	r.nodeInfos[i].Alive = true
+}
 
 func (r *Raft) setNodeInfoLeader(leaderId int) {
 	for i := 0; i < len(r.nodeInfos); i++ {

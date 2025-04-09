@@ -81,8 +81,10 @@ func (r *Raft) doHeartbeat() {
 				resp, err := r.peers[server].AppendEntries(context.Background(), req)
 				if err != nil {
 					log.Errorf("发送日志心跳失败 节点id:%d err: %v", server, err)
+					r.setNodeInfoDown(server)
 					return
 				}
+				r.setNodeInfoAlive(server)
 				log.Debugf("发送日志心跳 节点id:%d req.Term:%d,PrevLogIndex:%d,PrevLogTerm:%d,logSize:%d,LeaderCommit:%d", server, req.Term, req.PrevLogIndex, req.PrevLogTerm, len(req.Entries), req.LeaderCommit)
 				var sendLastLogIndex int
 				if len(req.Entries) > 0 {
@@ -114,7 +116,7 @@ func (r *Raft) handleAppendEntriesResp(sendLastLogIndex int, server int, resp *r
 	if resp.Success { // 成功
 		// 为follower更新nextIndex和matchIndex
 		if sendLastLogIndex == 0 { // 没有发送log，不更新nextIndex和matchIndex
-			log.Debugf("收到server:%d日志心跳回复，成功", server)
+			log.Debugf("收到server:%d日志心跳回复，成功。所有节点状态: %v", server, r.GetNodeInfos())
 			return
 		} else { // 发送了log，更新nextIndex和matchIndex
 			r.nextIndex[server] = sendLastLogIndex + 1
@@ -223,6 +225,7 @@ func (r *Raft) AppendEntries(_ context.Context, req *rpc.AppendEntriesReq) (*rpc
 	}
 	// req.Term == r.currentTerm
 	r.LeaderId = int(req.LeaderId)
+	r.setNodeInfoLeader(r.LeaderId)
 	lastLogIndex, _ := r.getLastLogIndexAndTerm()
 	if req.PrevLogIndex != 0 {
 		if lastLogIndex < int(req.PrevLogIndex) { // 本节点不包含prevLogIndex，返回false
@@ -276,7 +279,7 @@ func (r *Raft) AppendEntries(_ context.Context, req *rpc.AppendEntriesReq) (*rpc
 	}
 	resp.Term = int64(r.currentTerm)
 	resp.Success = true
-	log.Debugf("收到server:%d日志心跳，同意同步日志", req.LeaderId)
+	log.Debugf("收到server:%d日志心跳，同意同步日志，所有节点状态: %v", req.LeaderId, r.GetNodeInfos())
 	return &resp, nil
 }
 
