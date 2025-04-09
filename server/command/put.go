@@ -45,7 +45,7 @@ func (g PutCMD) Marshal() error {
 	return nil
 }
 func (g PutCMD) GetKeys() []string {
-	return nil
+	return g.Keys
 }
 func (g PutCMD) ExecCMD() string {
 	var resp PutResponse

@@ -33,8 +33,8 @@ func (g KeysCMD) GetKeys() []string {
 	return nil
 }
 func (g KeysCMD) ExecCMD() string {
+	//  目前只支持root账号
 	var resp KeysResponse
-	// 获取权限
 	keys := global.StorageEngine.Prefix("")
 	resp.Num = len(keys)
 	resp.Kvs = make([]KV, 0, len(keys))

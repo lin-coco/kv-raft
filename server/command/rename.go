@@ -35,7 +35,7 @@ func (g RenameCMD) Marshal() error {
 	return nil
 }
 func (g RenameCMD) GetKeys() []string {
-	return nil
+	return []string{g.Key,g.NewName}
 }
 func (g RenameCMD) ExecCMD() string {
 	var resp RenameResponse

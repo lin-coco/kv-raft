@@ -37,7 +37,7 @@ func (g GetCMD) Marshal() error {
 	return nil
 }
 func (g GetCMD) GetKeys() []string {
-	return nil
+	return g.Keys
 }
 func (g GetCMD) ExecCMD() string {
 	var resp GetResponse

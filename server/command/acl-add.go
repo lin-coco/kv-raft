@@ -8,6 +8,12 @@ import (
 	"strings"
 )
 
+type ACL struct {
+	Account string            `json:"account"`
+	Rules   []acltool.ACLRule `json:"rules"`
+	ApiKey  string            `json:"apikey"`
+}
+
 type AclAddCMD struct {
 	Account string            `json:"account"`
 	Rules   []acltool.ACLRule `json:"rules"`
@@ -73,7 +79,7 @@ func (g AclAddCMD) ExecCMD() string {
 	json.Unmarshal([]byte(a), &oldAcl)
 	global.StorageEngine.Del("system:acl:apikey:"+oldAcl.ApiKey)
 	// 覆盖acl，新增apikey
-	rules, _ := json.Marshal(g)
+	rules, _ := json.Marshal(ACL{Account: g.Account, Rules: g.Rules, ApiKey: g.ApiKey})
 	global.StorageEngine.Put("system:acl:"+g.Account, string(rules))
 	global.StorageEngine.Put("system:acl:apikey:" + g.ApiKey, g.Account)
 	resp.ApiKey = g.ApiKey

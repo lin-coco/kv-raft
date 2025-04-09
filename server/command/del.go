@@ -32,7 +32,7 @@ func (g DelCMD) Marshal() error {
 	return nil
 }
 func (g DelCMD) GetKeys() []string {
-	return nil
+	return g.Keys
 }
 func (g DelCMD) ExecCMD() string {
 	var resp DelResponse
