@@ -62,7 +62,7 @@ var (
 						"debug","debug-allkey"}
 )
 
-func RunCmd(client client.Client) {
+func RunCmd(client *client.Client) {
 	line := liner.NewLiner()
 	defer line.Close()
 	line.SetCtrlCAborts(true)
