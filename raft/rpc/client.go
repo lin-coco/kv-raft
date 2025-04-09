@@ -11,7 +11,7 @@ import (
 func NewRpcClient(addr string) RaftRpcClient {
 	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		log.Error("collect addr %s failed: %v, retry...", addr, err)
+		log.Errorf("collect addr %s failed: %v, retry...", addr, err)
 		panic(err)
 	}
 	return NewRaftRpcClient(conn)
